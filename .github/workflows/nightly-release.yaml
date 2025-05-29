@@ -79,4 +79,41 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
+          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}name: Nightly Development Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs every day at midnight UTC
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  nightly-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Retrieve latest tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "Latest tag: $latest_tag"
+          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+
+      - name: Determine next development release tag
+        run: |
+          if [ "$LATEST_TAG" = "none" ]; then
+            new_tag="v0.1.0"
+          else
+            new_tag=$(echo "$LATEST_TAG" | awk -F. '{printf "v%d.%d.%d", $1, $2, $3+1}')
+          fi
+          echo "New tag: $new_tag"
+          echo "NEW_TAG=$new_tag" >> $GITHUB_ENV
+
+      - name: Create development release
+        run: |
+          echo "Creating release with tag $NEW_TAG"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG 
+
+          
